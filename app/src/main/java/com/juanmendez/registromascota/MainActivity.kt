@@ -25,24 +25,43 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import coil.compose.AsyncImage
 import com.juanmendez.registromascota.ui.theme.RegistroMascotaTheme
 
 
 class MainActivity : ComponentActivity() {
+    private lateinit var mascotaViewModel: MascotaViewModel
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        mascotaViewModel = ViewModelProvider(this).get(MascotaViewModel::class.java)
         enableEdgeToEdge()
         setContent {
             RegistroMascotaTheme {
-
+                val listaMascotas by mascotaViewModel.listaMascotas.observeAsState(emptyList())
+                Column {
+                    FormularioDeMascotas(onRegistrar = { mascota ->
+                        mascotaViewModel.agregarMascota(mascota)
+                    })
+                    ListaDeMascotas(mascotas = listaMascotas, onEliminarMascota = { mascota ->
+                        mascotaViewModel.eliminarMascota(mascota)
+                    })
+                }
             }
         }
     }
@@ -59,21 +78,13 @@ data class Mascota(
 )
 /*Creacion del formulario*/
 @Composable
-fun FormularioDeMascotas(
-    nombre: String,
-    especie: String,
-    raza: String,
-    edad: String,
-    peso: String,
-    foto: String,
-    onNombreChange: (String)-> Unit,
-    onEspecieChange: (String)-> Unit,
-    onRazaChange: (String)-> Unit,
-    onEdadChange: (String)-> Unit,
-    onPesoChange: (String)-> Unit,
-    onFotoChange: (String)-> Unit,
-    onRegistrar: (String, String, String, Int, Double, String) -> Unit
-) {
+fun FormularioDeMascotas(onRegistrar: (Mascota) -> Unit) {
+    var nombre by remember { mutableStateOf("") }
+    var especie by remember { mutableStateOf("") }
+    var raza by remember { mutableStateOf("") }
+    var edad by remember { mutableStateOf("") }
+    var peso by remember { mutableStateOf("") }
+    var foto by remember { mutableStateOf("") }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -85,7 +96,7 @@ fun FormularioDeMascotas(
         // Campo para el nombre de la mascota
         TextField(
             value = nombre,
-            onValueChange = onNombreChange,
+            onValueChange = { nombre = it },
             label = { Text("Nombre")},
             modifier = Modifier.fillMaxWidth()
         )
@@ -94,7 +105,7 @@ fun FormularioDeMascotas(
         // Campo para la especie
         TextField(
             value = especie,
-            onValueChange = onEspecieChange,
+            onValueChange = { especie = it },
             label = { Text("Especie")},
             modifier = Modifier.fillMaxWidth()
         )
@@ -103,7 +114,7 @@ fun FormularioDeMascotas(
         // Campo para la raza
         TextField(
             value = raza,
-            onValueChange = onRazaChange,
+            onValueChange = { raza = it },
             label = { Text("Raza")},
             modifier = Modifier.fillMaxWidth()
         )
@@ -112,7 +123,7 @@ fun FormularioDeMascotas(
         Spacer(modifier = Modifier.height(8.dp))
         TextField(
             value = edad,
-            onValueChange = onEdadChange,
+            onValueChange = { edad = it },
             label = { Text("Edad (años)")},
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth()
@@ -122,15 +133,15 @@ fun FormularioDeMascotas(
         Spacer(modifier = Modifier.height(8.dp))
         TextField(
             value = peso,
-            onValueChange = onPesoChange,
-            label = { Text("Edad")},
+            onValueChange = { peso = it },
+            label = { Text("Peso")},
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(8.dp))
         TextField(
             value = foto,
-            onValueChange = onFotoChange,
+            onValueChange = { foto = it },
             label = { Text("Foto de la mascota")},
             modifier = Modifier.fillMaxWidth()
         )
@@ -138,9 +149,18 @@ fun FormularioDeMascotas(
         // Botón para registrar la mascota
         Button(
             onClick = {
-                val edadInt = edad.toIntOrNull() ?: 0
-                val pesoDouble = peso.toDoubleOrNull() ?: 0.0
-                onRegistrar(nombre, especie, raza, edadInt, pesoDouble, foto)  // Pasar los valores a la función callback
+                val nuevaMascota = Mascota(
+                    nombre, especie, raza,
+                    edad.toInt().toString(), peso.toDouble().toString(), foto
+                )
+                onRegistrar(nuevaMascota)  // Pasar los valores a la función callback
+                //limpiamos el formulario para una nueva carga
+                nombre = ""
+                especie = ""
+                raza = ""
+                edad = ""
+                peso = ""
+                foto = ""
             },
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -163,6 +183,16 @@ fun ListaDeMascotas(
         }
     }
 }
+
+@Composable
+fun ImagenMascota(foto: String) {
+    AsyncImage(
+        model = foto,
+        contentDescription = "Imagen de la mascota",
+        modifier = Modifier.size(100.dp)
+    )
+}
+
 @Composable
 fun MascotaItem(
     mascota: Mascota,
@@ -179,15 +209,31 @@ fun MascotaItem(
         Text(text = mascota.nombre, style = MaterialTheme.typography.titleLarge)
 
         //Informacion en fila de las mascotas
-        LazyRow (
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ){
-            item { Text("Especie: ${mascota.especie}") }
-            item { Text("Raza: ${mascota.raza}") }
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            item { Text("Especie: ${mascota.especie}")}
+            item { Text("Raza: ${mascota.raza}")}
+        }
+        // Spacer(modifier = Modifier.height(8.dp))
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
             item { Text("Edad: ${mascota.edad} años") }
             item { Text("Peso: ${mascota.peso} kg") }
-           // item { ImageFromUrl(mascota.foto) }
         }
+        //Muestra de la imagen de la mascota
+        AsyncImage(
+            model = mascota.foto,
+            contentDescription = "Foto de ${mascota.nombre}",
+            modifier = Modifier
+                .size(100.dp)
+                .padding(top = 8.dp),
+            // placeholder = painterResource(id = R.drawable.placeholder), // Imagen de carga
+            //error = painterResource(id = R.drawable.error)
+        )
 
         //Boton para eliminar la parte inferior del item
         Button(
@@ -221,7 +267,18 @@ fun ImageFromUrl(url: String, modifier: Modifier = Modifier) {
     )
 }
 */
+class MascotaViewModel : ViewModel() {
+    private val _listaMascotas = MutableLiveData<List<Mascota>>(emptyList())
+    val listaMascotas: LiveData<List<Mascota>> get() = _listaMascotas
 
+    fun agregarMascota(mascota: Mascota) {
+        _listaMascotas.value = _listaMascotas.value?.plus(mascota)
+    }
+
+    fun eliminarMascota(mascota: Mascota) {
+        _listaMascotas.value = _listaMascotas.value?.filterNot { it == mascota }
+    }
+}
 
 @Preview(showBackground = true)
 @Composable
@@ -231,25 +288,9 @@ fun VistaPreviewAplicacionDeContactos() {
             Mascota("Jordan", "Perro", "Husky Siberiano ", "5", "35", "https://ejemplo.com/luna.jpg"),
             Mascota("Tina", "Gato", "Siamés", "5", "8", "https://ejemplo.com/max.jpg")
         )
-        Column{
-            FormularioDeMascotas(
-                nombre = "",
-                especie = "",
-                raza = "",
-                edad = "",
-                peso = "",
-                foto = "",
-                onNombreChange = {},
-                onEspecieChange = {},
-                onRazaChange = {},
-                onEdadChange = {},
-                onPesoChange = {},
-                onFotoChange = {},
-                onRegistrar = { _, _, _, _, _, _ -> }
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-
-            ListaDeMascotas(mascotas = mascotas, onEliminarMascota = {})
+        Column {
+            FormularioDeMascotas(onRegistrar = { /* no hacer nada en la vista previa */ })
+            ListaDeMascotas(mascotas = mascotas, onEliminarMascota = { /* no hacer nada en la vista previa */ })
         }
     }
 }
