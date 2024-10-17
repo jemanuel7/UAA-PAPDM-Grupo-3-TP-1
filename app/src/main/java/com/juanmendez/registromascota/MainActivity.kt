@@ -83,6 +83,7 @@ data class Mascota(
     val foto: String
 
 )
+
 /*Creacion del formulario*/
 @Composable
 fun FormularioDeMascotas(onRegistrar: (Mascota) -> Unit) {

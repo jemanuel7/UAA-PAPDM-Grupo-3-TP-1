@@ -1,4 +1,6 @@
 package com.juanmendez.registromascota.ui.theme
+
+/*agregar temas con material designer*/
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme

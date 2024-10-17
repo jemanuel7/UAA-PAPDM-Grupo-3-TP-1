@@ -1,4 +1,5 @@
 package com.juanmendez.registromascota.ui.theme
+/*agregar colores*/
 import androidx.compose.ui.graphics.Color
 
 val primaryLight = Color(0xFF116B56)

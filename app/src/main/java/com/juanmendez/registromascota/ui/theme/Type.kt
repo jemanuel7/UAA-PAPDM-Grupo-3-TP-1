@@ -8,6 +8,7 @@ import androidx.compose.ui.unit.sp
 
 import androidx.compose.ui.text.googlefonts.GoogleFont
 import androidx.compose.ui.text.googlefonts.Font
+/*agregar fuentes*/
 import com.juanmendez.registromascota.R
 
 val provider = GoogleFont.Provider(
