@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -18,12 +19,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
@@ -31,6 +35,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -42,6 +48,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import coil.compose.AsyncImage
+import com.juanmendez.registromascota.ui.theme.Purple80
 import com.juanmendez.registromascota.ui.theme.RegistroMascotaTheme
 
 
@@ -85,6 +92,7 @@ fun FormularioDeMascotas(onRegistrar: (Mascota) -> Unit) {
     var edad by remember { mutableStateOf("") }
     var peso by remember { mutableStateOf("") }
     var foto by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf("") }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -98,7 +106,8 @@ fun FormularioDeMascotas(onRegistrar: (Mascota) -> Unit) {
             value = nombre,
             onValueChange = { nombre = it },
             label = { Text("Nombre")},
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            isError = errorMessage.isNotEmpty() && nombre.isBlank()
         )
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -107,7 +116,9 @@ fun FormularioDeMascotas(onRegistrar: (Mascota) -> Unit) {
             value = especie,
             onValueChange = { especie = it },
             label = { Text("Especie")},
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            isError = errorMessage.isNotEmpty() && especie.isBlank()
+
         )
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -116,7 +127,8 @@ fun FormularioDeMascotas(onRegistrar: (Mascota) -> Unit) {
             value = raza,
             onValueChange = { raza = it },
             label = { Text("Raza")},
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            isError = errorMessage.isNotEmpty() && raza.isBlank()
         )
 
         // Campo para la edad (convertimos el valor en entero al agregar)
@@ -126,7 +138,8 @@ fun FormularioDeMascotas(onRegistrar: (Mascota) -> Unit) {
             onValueChange = { edad = it },
             label = { Text("Edad (años)")},
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            isError = errorMessage.isNotEmpty() && (edad.isBlank() || edad.toIntOrNull() == null)
         )
 
         // Campo para el peso (convertimos el valor en double al agregar)
@@ -136,16 +149,21 @@ fun FormularioDeMascotas(onRegistrar: (Mascota) -> Unit) {
             onValueChange = { peso = it },
             label = { Text("Peso")},
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            isError = errorMessage.isNotEmpty() && (peso.isBlank() || peso.toDoubleOrNull() == null)
         )
         Spacer(modifier = Modifier.height(8.dp))
         TextField(
             value = foto,
             onValueChange = { foto = it },
             label = { Text("Foto de la mascota")},
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            isError = errorMessage.isNotEmpty() && foto.isBlank()
         )
-
+        // Mensaje de error
+        if (errorMessage.isNotEmpty()) {
+            Text(text = errorMessage, color = Color.Red)
+        }
         // Botón para registrar la mascota
         Button(
             onClick = {
@@ -175,7 +193,7 @@ fun ListaDeMascotas(
     onEliminarMascota: (Mascota) ->Unit //Callback para eliminar mascotas
 ){
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ){
         items(mascotas) { mascota ->
@@ -202,7 +220,9 @@ fun MascotaItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp)
-            .background(Color.LightGray)
+            .background(Color.DarkGray)
+            .clip(RoundedCornerShape(8.dp))
+            .shadow(4.dp)
             .padding(8.dp)
     ){
         // Nombre de la mascota
@@ -230,7 +250,9 @@ fun MascotaItem(
             contentDescription = "Foto de ${mascota.nombre}",
             modifier = Modifier
                 .size(100.dp)
-                .padding(top = 8.dp),
+                .padding(top = 8.dp)
+                .clip(RoundedCornerShape(8.dp)) // Bordes redondeados para la imagen
+
             // placeholder = painterResource(id = R.drawable.placeholder), // Imagen de carga
             //error = painterResource(id = R.drawable.error)
         )
@@ -280,17 +302,30 @@ class MascotaViewModel : ViewModel() {
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = false)
 @Composable
 fun VistaPreviewAplicacionDeContactos() {
     RegistroMascotaTheme {
         val mascotas = listOf(
-            Mascota("Jordan", "Perro", "Husky Siberiano ", "5", "35", "https://ejemplo.com/luna.jpg"),
-            Mascota("Tina", "Gato", "Siamés", "5", "8", "https://ejemplo.com/max.jpg")
+            Mascota(
+                "Jordan", "Perro", "Husky Siberiano", "5", "35",
+                "https://grupoasis.com.es/desarrollo/clientes/virbac/breedselector/es/wp-content/uploads/2013/04/husky.jpg"
+            ),
+            Mascota(
+                "Tina", "Gato", "Siamés", "5", "8",
+                "https://png.pngtree.com/element_our/png/20181009/thai-cat-cream-tabby-sitting-png_131622.jpg"
+            ),
+            Mascota(
+                "Tina2.0", "Gato", "Siamés", "5", "8",
+                "https://png.pngtree.com/element_our/png/20181009/thai-cat-cream-tabby-sitting-png_131622.jpg"
+            )
         )
+
         Column {
             FormularioDeMascotas(onRegistrar = { /* no hacer nada en la vista previa */ })
             ListaDeMascotas(mascotas = mascotas, onEliminarMascota = { /* no hacer nada en la vista previa */ })
         }
     }
 }
+
+
